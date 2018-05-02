@@ -18,6 +18,8 @@ If you don't know how to compile stuff on Windows (I sure didn't), oput the extr
 
 ---
 
-Usage: Decode [inputrom.z64] [outputrom.z64]
+Usage: Decompress.exe [inputrom.z64]
 
 If you don't know how to run programs on windows with arguments, it's the same process as compiling it, only you replace the gcc line with what's written above.
+
+Or just drag and drop a compressed ROM into decompress.exe
