@@ -6,6 +6,8 @@ This is a decoder for Zelda: Ocarina of Time. It will take a compressed ROM of t
 
 This is essentially the same as another decoder be the name of ndec, but I wanted one of my own, so I made a new one. Mine uses the same algorithm, and some of the same files as ndec.
 
+If you want to play the OoT Randomiser, you'll need a decompressed ROM, so you would want to put a compressed ROM through this program first, then use the randomiser.
+
 ---
 
 Compiling on Linux/Mac: gcc -o Decode decoder.c
