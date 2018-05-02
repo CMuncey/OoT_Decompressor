@@ -12,7 +12,7 @@ If you want to play the OoT Randomiser, you'll need a decompressed ROM, so you w
 
 Compiling on Linux/Mac: gcc -o Decode decoder.c
 
-Compiling on Windows: gcc -o Decode.exe decoder.c -l ws2_32
+Compiling on Windows: gcc -o Decode.exe decoder.c -lws2_32
 
 You'll probably want MinGW for this if you're on Windows. That's what I used anyway.
 
