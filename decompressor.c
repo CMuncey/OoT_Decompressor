@@ -165,6 +165,15 @@ void loadROM(char* name)
 	/* Read to inROM, close romFile, and copy to outROM */
 	fread(inROM, sizeof(char), size, romFile);
 	fclose(romFile);
+	if (inROM[0] = 0x37) {
+		int i;
+		uint8_t temp;
+		for (i = 0; i < COMPSIZE; i += 2) {
+			temp = inROM[i];
+			inROM[i] = inROM[i + 1];
+			inROM[i + 1] = temp;
+		}
+	}
 	memcpy(outROM, inROM, size);
 }
 
