@@ -165,6 +165,13 @@ void loadROM(char* name)
 	/* Read to inROM, close romFile, and copy to outROM */
 	fread(inROM, sizeof(char), size, romFile);
 	fclose(romFile);
+	if (inROM[0] == 0x37) {
+		int i;
+		uint16_t *temp = (uint16_t*)inROM;
+		for (i = 0; i < COMPSIZE / 2; i++) {
+			temp[i] = htobe16(temp[i]);
+		}
+	}
 	memcpy(outROM, inROM, size);
 }
 
