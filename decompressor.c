@@ -167,11 +167,9 @@ void loadROM(char* name)
 	fclose(romFile);
 	if (inROM[0] = 0x37) {
 		int i;
-		uint8_t temp;
-		for (i = 0; i < COMPSIZE; i += 2) {
-			temp = inROM[i];
-			inROM[i] = inROM[i + 1];
-			inROM[i + 1] = temp;
+		uint16_t *temp = (uint16_t*)inROM;
+		for (i = 0; i < COMPSIZE/2; i++) {
+			temp[i] = htobe16(temp[i]);
 		}
 	}
 	memcpy(outROM, inROM, size);
