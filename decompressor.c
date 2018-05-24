@@ -9,8 +9,6 @@
 #define DCMPSIZE 0x04000000
 #define bSwap_32(x, y) asm("bswap %%eax" : "=a"(x) : "a"(y))
 #define bSwap_16(x, y) asm("xchg %h0, %b0" : "=a"(x) : "a"(y))
-//inline uint16_t bSwap_16(uint16_t x) {asm("xchg %h0, %b0" : "+a"(x)); return(x);}
-
 
 /* Structs */
 typedef struct
@@ -173,7 +171,7 @@ void loadROM(char* name)
 	/* bSwap_32 if needed */
 	if (inROM[0] == 0x37)
 		for (i = 0; i < UINTSIZE; i++)
-			/*tempROM[i] = */bSwap_16(tempROM[i], tempROM[i]);
+			bSwap_16(tempROM[i], tempROM[i]);
 
 	memcpy(outROM, inROM, size);
 }
