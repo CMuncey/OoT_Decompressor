@@ -2,12 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "endian.h"
 #include "crc.c"
 
 #define UINTSIZE 0x01000000
 #define COMPSIZE 0x02000000
 #define DCMPSIZE 0x04000000
+#define bSwap_32(x, y) asm("bswap %%eax" : "=a"(x) : "a"(y))
+#define bSwap_16(x, y) asm("xchg %h0, %b0" : "=a"(x) : "a"(y))
+//inline uint16_t bSwap_16(uint16_t x) {asm("xchg %h0, %b0" : "+a"(x)); return(x);}
+
 
 /* Structs */
 typedef struct
@@ -53,12 +56,11 @@ int main(int argc, char** argv)
 	tab = getTabEnt(2);
 	tabSize = tab.endV - tab.startV;
 	tabCount = tabSize / 16;
-	i = 3;
 
 	/* Set everything past the table in outROM to 0 */
 	memset((uint8_t*)(outROM) + tab.endV, 0, DCMPSIZE - tab.endV);
 
-	while(i < tabCount)
+	for(i = 3; i < tabCount; i++)
 	{
 		tempTab = getTabEnt(i);
 		size = tempTab.endV - tempTab.startV;
@@ -73,23 +75,19 @@ int main(int argc, char** argv)
 		tempTab.startP = tempTab.startV;
 		tempTab.endP = 0x00000000;
 		setTabEnt(i, tempTab);
-
-		i++;
 	}
 
 	/* Write the new ROM */
-	i = 0;
 	size = strlen(argv[1]);
 	name = malloc(size + 7);
 	strcpy(name, argv[1]);
-	while(i < size)
+	for(i = size; i >= 0; i--)
 	{
 		if(name[i] == '.')
 		{
 			name[i] = '\0';
 			break;
 		}
-		i++;
 	}
 	strcat(name, "-decomp.z64");
 	outFile = fopen(name, "wb");
@@ -107,31 +105,35 @@ int main(int argc, char** argv)
 
 int32_t findTable()
 {
-	int32_t i;
-	uint32_t* temp;
+	int32_t i, temp;
+	uint32_t* tempROM;
 
-	i = 0;
-	temp = (uint32_t*)inROM;
+	tempROM = (uint32_t*)inROM;
 
-	while(i+4 < UINTSIZE)
+	for(i = 0; i+4 < UINTSIZE; i += 4)
 	{
-		/* Thsese values mark the begining of the file table */
-		if(htobe32(temp[i]) == 0x7A656C64)
+		/* This marks the begining of the filetable */
+		bSwap_32(temp, tempROM[i]);
+		if(temp == 0x7A656C64)
 		{
-			if(htobe32(temp[i+1]) == 0x61407372)
+			bSwap_32(temp, tempROM[i+1]);
+			if(temp == 0x61407372)
 			{
-				if((htobe32(temp[i+2]) & 0xFF000000) == 0x64000000)
+				bSwap_32(temp, tempROM[i+2]);
+				if((temp & 0xFF000000) == 0x64000000)
 				{
-					/* Search for the begining of the filetable */
+					/* Find first entry in file table */
 					i += 8;
-					while(htobe32(temp[i]) != 0x00001060)
+					bSwap_32(temp, tempROM[i]);
+					while(temp != 0x00001060)
+					{
 						i += 4;
+						bSwap_32(temp, tempROM[i]);
+					}
 					return((i-4) * sizeof(uint32_t));
 				}
 			}
 		}
-
-		i += 4;
 	}
 
 	fprintf(stderr, "Error: Couldn't find table\n");
@@ -140,7 +142,8 @@ int32_t findTable()
 
 void loadROM(char* name)
 {
-	uint32_t size;
+	uint32_t size, i;
+	uint16_t* tempROM;
 	FILE* romFile;
 	
 	/* Open file, make sure it exists */
@@ -164,14 +167,14 @@ void loadROM(char* name)
 
 	/* Read to inROM, close romFile, and copy to outROM */
 	fread(inROM, sizeof(char), size, romFile);
+	tempROM = (uint16_t*)inROM;
 	fclose(romFile);
-	if (inROM[0] == 0x37) {
-		int i;
-		uint16_t *temp = (uint16_t*)inROM;
-		for (i = 0; i < COMPSIZE / 2; i++) {
-			temp[i] = htobe16(temp[i]);
-		}
-	}
+
+	/* bSwap_32 if needed */
+	if (inROM[0] == 0x37)
+		for (i = 0; i < UINTSIZE; i++)
+			/*tempROM[i] = */bSwap_16(tempROM[i], tempROM[i]);
+
 	memcpy(outROM, inROM, size);
 }
 
@@ -181,10 +184,10 @@ table_t getTabEnt(uint32_t i)
 
 	/* First 32 bytes are VROM start address, next 32 are VROM end address */
 	/* Next 32 bytes are Physical start address, last 32 are Physical end address */
-	tab.startV = htobe32(inTable[i*4]);
-	tab.endV   = htobe32(inTable[(i*4)+1]);
-	tab.startP = htobe32(inTable[(i*4)+2]);
-	tab.endP   = htobe32(inTable[(i*4)+3]);
+	bSwap_32(tab.startV, inTable[i*4]);
+	bSwap_32(tab.endV,   inTable[(i*4)+1]);
+	bSwap_32(tab.startP, inTable[(i*4)+2]);
+	bSwap_32(tab.endP,   inTable[(i*4)+3]);
 
 	return(tab);
 }
@@ -193,10 +196,10 @@ void setTabEnt(uint32_t i, table_t tab)
 {
 	/* First 32 bytes are VROM start address, next 32 are VROM end address */
 	/* Next 32 bytes are Physical start address, last 32 are Physical end address */
-	outTable[i*4]     = htobe32(tab.startV);
-	outTable[(i*4)+1] = htobe32(tab.endV);
-	outTable[(i*4)+2] = htobe32(tab.startP);
-	outTable[(i*4)+3] = htobe32(tab.endP);
+	bSwap_32(outTable[i*4],     tab.startV);
+	bSwap_32(outTable[(i*4)+1], tab.endV);
+	bSwap_32(outTable[(i*4)+2], tab.startP);
+	bSwap_32(outTable[(i*4)+3], tab.endP);
 }
 
 void decode(uint8_t* source, uint8_t* decomp, int32_t decompSize)
