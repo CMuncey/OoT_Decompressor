@@ -7,8 +7,6 @@
 #define UINTSIZE 0x01000000
 #define COMPSIZE 0x02000000
 #define DCMPSIZE 0x04000000
-#define bSwap_32(x, y) asm("bswap %%eax" : "=a"(x) : "a"(y))
-#define bSwap_16(x, y) asm("xchg %h0, %b0" : "=a"(x) : "a"(y))
 
 /* Structs */
 typedef struct
@@ -21,6 +19,8 @@ typedef struct
 table_t;
 
 /* Functions */
+uint16_t bSwap_16(uint16_t);
+uint32_t bSwap_32(uint32_t);
 void decode(uint8_t*, uint8_t*, int32_t);
 table_t getTabEnt(uint32_t);
 void setTabEnt(uint32_t, table_t);
@@ -111,22 +111,22 @@ int32_t findTable()
     for(i = 0; i+4 < UINTSIZE; i += 4)
     {
         /* This marks the begining of the filetable */
-        bSwap_32(temp, tempROM[i]);
+        temp = bSwap_32(tempROM[i]);
         if(temp == 0x7A656C64)
         {
-            bSwap_32(temp, tempROM[i+1]);
+            temp = bSwap_32(tempROM[i+1]);
             if(temp == 0x61407372)
             {
-                bSwap_32(temp, tempROM[i+2]);
+                temp = bSwap_32(tempROM[i+2]);
                 if((temp & 0xFF000000) == 0x64000000)
                 {
                     /* Find first entry in file table */
                     i += 8;
-                    bSwap_32(temp, tempROM[i]);
+                    temp = bSwap_32(tempROM[i]);
                     while(temp != 0x00001060)
                     {
                         i += 4;
-                        bSwap_32(temp, tempROM[i]);
+                        temp = bSwap_32(tempROM[i]);
                     }
                     return((i-4) * sizeof(uint32_t));
                 }
@@ -171,7 +171,7 @@ void loadROM(char* name)
     /* bSwap_32 if needed */
     if (inROM[0] == 0x37)
         for (i = 0; i < UINTSIZE; i++)
-            bSwap_16(tempROM[i], tempROM[i]);
+            tempROM[i] = bSwap_16(tempROM[i]);
 
     memcpy(outROM, inROM, size);
 }
@@ -182,10 +182,10 @@ table_t getTabEnt(uint32_t i)
 
     /* First 32 bytes are VROM start address, next 32 are VROM end address */
     /* Next 32 bytes are Physical start address, last 32 are Physical end address */
-    bSwap_32(tab.startV, inTable[i*4]);
-    bSwap_32(tab.endV,   inTable[(i*4)+1]);
-    bSwap_32(tab.startP, inTable[(i*4)+2]);
-    bSwap_32(tab.endP,   inTable[(i*4)+3]);
+    tab.startV = bSwap_32(inTable[i*4]);
+    tab.endV   = bSwap_32(inTable[(i*4)+1]);
+    tab.startP = bSwap_32(inTable[(i*4)+2]);
+    tab.endP   = bSwap_32(inTable[(i*4)+3]);
 
     return(tab);
 }
@@ -194,10 +194,10 @@ void setTabEnt(uint32_t i, table_t tab)
 {
     /* First 32 bytes are VROM start address, next 32 are VROM end address */
     /* Next 32 bytes are Physical start address, last 32 are Physical end address */
-    bSwap_32(outTable[i*4],     tab.startV);
-    bSwap_32(outTable[(i*4)+1], tab.endV);
-    bSwap_32(outTable[(i*4)+2], tab.startP);
-    bSwap_32(outTable[(i*4)+3], tab.endP);
+    outTable[i*4]     = bSwap_32(tab.startV);
+    outTable[(i*4)+1] = bSwap_32(tab.endV);
+    outTable[(i*4)+2] = bSwap_32(tab.startP);
+    outTable[(i*4)+3] = bSwap_32(tab.endP);
 }
 
 void decode(uint8_t* source, uint8_t* decomp, int32_t decompSize)
@@ -251,4 +251,30 @@ void decode(uint8_t* source, uint8_t* decomp, int32_t decompSize)
         codeByte = codeByte << 1;
         bitCount--;
     }
+}
+
+uint16_t bSwap_16(uint16_t input)
+{
+    uint16_t result;
+    uint16_t b0,b1;
+
+    b0 = (input & 0x00ff) << 8u;
+    b1 = (input & 0xff00) >> 8u;
+
+    result = b0 | b1;
+    return result;
+}
+
+uint32_t bSwap_32(uint32_t input)
+{
+    uint32_t result;
+    uint32_t b0,b1,b2,b3;
+
+    b0 = (input & 0x000000ff) << 24u;
+    b1 = (input & 0x0000ff00) << 8u;
+    b2 = (input & 0x00ff0000) >> 8u;
+    b3 = (input & 0xff000000) >> 24u;
+
+    result = b0 | b1 | b2 | b3;
+    return result;
 }
