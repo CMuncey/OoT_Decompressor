@@ -151,27 +151,24 @@ int32_t N64CalcCRC(uint32_t *crc, uint8_t *data)
 	return 0;
 }
 
-void fix_crc (char *filename)
+void fix_crc (FILE *fin)
 {
-	FILE *fin;
 	int32_t i;
 	
-		uint8_t CRC1[4];
-		uint8_t CRC2[4];
+	uint8_t CRC1[4];
+	uint8_t CRC2[4];
 	uint32_t crc[2];
 	uint8_t *buffer;
 	gen_table();
-	fin = fopen(filename, "rb+");
-	if(!fin){exit(0);}
+	if(!fin){return;}
 	
 	if (!(buffer = (uint8_t*)malloc((CHECKSUM_START + CHECKSUM_LENGTH)))) {
-		fclose(fin);
+		return;
 	}
 
 	if (fread(buffer, 1, (CHECKSUM_START + CHECKSUM_LENGTH), fin) != (CHECKSUM_START + CHECKSUM_LENGTH)) {
-		fclose(fin);
 		free(buffer);
-	
+		return;
 	}
 	
 	if (N64CalcCRC(crc, buffer)) {
@@ -211,6 +208,5 @@ void fix_crc (char *filename)
 
 	
 	
-	fclose(fin);
 	free(buffer);
 }

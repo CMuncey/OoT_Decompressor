@@ -88,15 +88,16 @@ int main(int argc, char** argv)
         }
     }
     strcat(name, "-decomp.z64");
-    outFile = fopen(name, "wb");
+    outFile = fopen(name, "w+b");
     fwrite(outROM, sizeof(uint32_t), UINTSIZE, outFile);
-    fclose(outFile);
     free(outROM);
     free(inROM);
 
     /* I have no idea what's going on with this. I think it's just Nintendo magic */
-    fix_crc(name);
+    rewind(outFile);
+    fix_crc(outFile);
     free(name);
+    fclose(outFile);
 
     return(0);
 }
