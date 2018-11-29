@@ -76,18 +76,26 @@ int main(int argc, char** argv)
     }
 
     /* Write the new ROM */
-    size = strlen(argv[1]);
-    name = malloc(size + 7);
-    strcpy(name, argv[1]);
-    for(i = size; i >= 0; i--)
+    if (argc > 2)
     {
-        if(name[i] == '.')
-        {
-            name[i] = '\0';
-            break;
-        }
+        name = malloc(strlen(argv[2]));
+        strcpy(name, argv[2]);
     }
-    strcat(name, "-decomp.z64");
+    else
+    {
+        size = strlen(argv[1]);
+        name = malloc(size + 7);
+        strcpy(name, argv[1]);
+        for(i = size; i >= 0; i--)
+        {
+            if(name[i] == '.')
+            {
+                name[i] = '\0';
+                break;
+            }
+        }
+        strcat(name, "-decomp.z64");
+    }
     outFile = fopen(name, "w+b");
     fwrite(outROM, sizeof(uint32_t), UINTSIZE, outFile);
     free(outROM);
