@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define ROL(i, b) (((i) << (b)) | ((i) >> (32 - (b))))
 #define BYTES2LONG(b) ( (b)[0] << 24 | \
@@ -44,12 +45,12 @@
 #define CHECKSUM_CIC6106 0x1FEA617A
 
 
-unsigned int crc_table[256];
+uint32_t crc_table[256];
 
 void gen_table() 
 {
-	unsigned int crc, poly;
-	int	i, j;
+	uint32_t crc, poly;
+	int32_t	i, j;
 
 	poly = 0xEDB88320;
 	for (i = 0; i < 256; i++) {
@@ -62,10 +63,10 @@ void gen_table()
 	}
 }
 
-unsigned int crc32(unsigned char *data, int len) 
+uint32_t crc32(uint8_t *data, int32_t len) 
 {
-	unsigned int crc = ~0;
-	int i;
+	uint32_t crc = ~0;
+	int32_t i;
 
 	for (i = 0; i < len; i++) {
 		crc = (crc >> 8) ^ crc_table[(crc ^ data[i]) & 0xFF];
@@ -75,7 +76,7 @@ unsigned int crc32(unsigned char *data, int len)
 }
 
 
-int N64GetCIC(unsigned char *data) 
+int32_t N64GetCIC(uint8_t *data) 
 {
 	switch (crc32(&data[N64_HEADER_SIZE], N64_BC_SIZE)) {
 		case 0x6170A4A1: return 6101;
@@ -88,14 +89,14 @@ int N64GetCIC(unsigned char *data)
 	return 0;
 }
 
-int N64CalcCRC(unsigned int *crc, unsigned char *data) 
+int32_t N64CalcCRC(uint32_t *crc, uint8_t *data) 
 {
-	int bootcode, i;
-	unsigned int seed;
+	int32_t bootcode, i;
+	uint32_t seed;
 
-	unsigned int t1, t2, t3;
-	unsigned int t4, t5, t6;
-	unsigned int r, d;
+	uint32_t t1, t2, t3;
+	uint32_t t4, t5, t6;
+	uint32_t r, d;
 
 
 	switch ((bootcode = N64GetCIC(data))) {
@@ -150,35 +151,32 @@ int N64CalcCRC(unsigned int *crc, unsigned char *data)
 	return 0;
 }
 
-void fix_crc (char *filename)
+void fix_crc (FILE *fin)
 {
-	FILE *fin;
-	int i;
+	int32_t i;
 	
-		unsigned char CRC1[4];
-		unsigned char CRC2[4];
-	unsigned int crc[2];
-	unsigned char *buffer;
+	uint8_t CRC1[4];
+	uint8_t CRC2[4];
+	uint32_t crc[2];
+	uint8_t *buffer;
 	gen_table();
-	fin = fopen(filename, "rb+");
-	if(!fin){exit(0);}
+	if(!fin){return;}
 	
-	if (!(buffer = (unsigned char*)malloc((CHECKSUM_START + CHECKSUM_LENGTH)))) {
-		fclose(fin);
+	if (!(buffer = (uint8_t*)malloc((CHECKSUM_START + CHECKSUM_LENGTH)))) {
+		return;
 	}
 
 	if (fread(buffer, 1, (CHECKSUM_START + CHECKSUM_LENGTH), fin) != (CHECKSUM_START + CHECKSUM_LENGTH)) {
-		fclose(fin);
 		free(buffer);
-	
+		return;
 	}
 	
 	if (N64CalcCRC(crc, buffer)) {
 	
 	}
 	else {
-		unsigned int kk1=crc[0];
-		unsigned int kk2=crc[1];
+		uint32_t kk1=crc[0];
+		uint32_t kk2=crc[1];
 		for(i=0;i<4;i++)
 		{
 		CRC1[i] = (kk1 >> (24-8*i))&0xFF;
@@ -210,6 +208,5 @@ void fix_crc (char *filename)
 
 	
 	
-	fclose(fin);
 	free(buffer);
 }
