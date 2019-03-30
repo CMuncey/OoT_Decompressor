@@ -44,6 +44,13 @@ int main(int argc, char** argv)
     inROM = malloc(DCMPSIZE);
     outROM = malloc(DCMPSIZE);
 
+    /* Check arguments */
+    if(argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [Input ROM]\n", argv[0]);
+        exit(1);
+    }
+
     /* Load the ROM into inROM and outROM */
     loadROM(argv[1]);
 
@@ -62,6 +69,10 @@ int main(int argc, char** argv)
     {
         tempTab = getTabEnt(i);
         size = tempTab.endV - tempTab.startV;
+
+        /* dmaTable will have 0xFFFFFFFF if file doesn't exist */
+        if(tempTab.startP >= DCMPSIZE || tempTab.endP > DCMPSIZE)
+            continue;
 
         /* Copy if decoded, decode if encoded */
         if(tempTab.endP == 0x00000000)
@@ -108,30 +119,14 @@ int32_t findTable()
 
     tempROM = (uint32_t*)inROM;
 
-    for(i = 0; i+4 < UINTSIZE; i += 4)
+    /* Start at the end of the makerom (0x10600000) */
+    /* Look for dma entry for the makeom */
+    /* Should work for all Zelda64 titles */
+    for(i = 1048; i+4 < UINTSIZE; i += 4)
     {
-        /* This marks the begining of the filetable */
-        bSwap_32(temp, tempROM[i]);
-        if(temp == 0x7A656C64)
-        {
-            bSwap_32(temp, tempROM[i+1]);
-            if(temp == 0x61407372)
-            {
-                bSwap_32(temp, tempROM[i+2]);
-                if((temp & 0xFF000000) == 0x64000000)
-                {
-                    /* Find first entry in file table */
-                    i += 8;
-                    bSwap_32(temp, tempROM[i]);
-                    while(temp != 0x00001060)
-                    {
-                        i += 4;
-                        bSwap_32(temp, tempROM[i]);
-                    }
-                    return((i-4) * sizeof(uint32_t));
-                }
-            }
-        }
+        if(tempROM[i] == 0x00000000)
+            if(tempROM[i+1] == 0x60100000)
+                return(i * 4);
     }
 
     fprintf(stderr, "Error: Couldn't find table\n");
@@ -168,7 +163,7 @@ void loadROM(char* name)
     tempROM = (uint16_t*)inROM;
     fclose(romFile);
 
-    /* bSwap_32 if needed */
+    /* bSwap_16 if needed */
     if (inROM[0] == 0x37)
         for (i = 0; i < UINTSIZE; i++)
             bSwap_16(tempROM[i], tempROM[i]);
