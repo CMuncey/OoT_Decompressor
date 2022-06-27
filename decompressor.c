@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "crc.c"
+#include "z64crc.h"
 #include "bSwap.h"
 
 #define UINTSIZE 0x01000000
@@ -20,7 +20,7 @@ typedef struct
 table_t;
 
 /* Functions */
-void decode(uint8_t*, uint8_t*, int32_t);
+void decompress(uint8_t*, uint8_t*, int32_t);
 table_t getTabEnt(uint32_t);
 void setTabEnt(uint32_t, table_t);
 void loadROM(char*);
@@ -39,9 +39,6 @@ int main(int argc, char** argv)
     int32_t size, i;
     table_t tab, tempTab;
     char* name;
-
-    inROM = malloc(DCMPSIZE);
-    outROM = malloc(DCMPSIZE);
 
     /* Check arguments */
     if(argc < 2 || argc > 3)
@@ -67,8 +64,12 @@ int main(int argc, char** argv)
         }
         strcat(name, "-decomp.z64");
     }
+    
     else
         name = argv[2];
+
+    inROM = malloc(DCMPSIZE);
+    outROM = malloc(DCMPSIZE);
 
     /* Load the ROM into inROM and outROM */
     loadROM(argv[1]);
@@ -93,11 +94,11 @@ int main(int argc, char** argv)
         if(tempTab.startP >= DCMPSIZE || tempTab.endP > DCMPSIZE)
             continue;
 
-        /* Copy if decoded, decode if encoded */
+        /* Copy if uncompressed, uncompress otherwise */
         if(tempTab.endP == 0x00000000)
             memcpy((void*)outROM + tempTab.startV, (void*)inROM + tempTab.startP, size);
         else
-            decode((void*)inROM + tempTab.startP, (void*)outROM + tempTab.startV, size);
+            decompress((void*)inROM + tempTab.startP, (void*)outROM + tempTab.startV, size);
 
         /* Clean up outROM's table */
         tempTab.startP = tempTab.startV;
@@ -105,16 +106,15 @@ int main(int argc, char** argv)
         setTabEnt(i, tempTab);
     }
 
+	/* Fix the CRC before writing the ROM */
+	fixCRC(outROM);
+
     /* Write the new ROM */
     outFile = fopen(name, "wb");
     fwrite(outROM, sizeof(uint32_t), UINTSIZE, outFile);
     fclose(outFile);
-    free(outROM);
     free(inROM);
-
-    /* I have no idea what's going on with this. I think it's just Nintendo magic */
-    fix_crc(name);
-
+	free(outROM);
     if(argc != 3)
         free(name);
 
@@ -172,10 +172,10 @@ void loadROM(char* name)
     tempROM = (uint16_t*)inROM;
     fclose(romFile);
 
-    /* bSwap_16 if needed */
+    /* bSwap16 if needed */
     if (inROM[0] == 0x37)
         for (i = 0; i < UINTSIZE; i++)
-            tempROM[i] = bSwap_16(tempROM[i]);
+            tempROM[i] = bSwap16(tempROM[i]);
 
     memcpy(outROM, inROM, size);
 }
@@ -186,10 +186,10 @@ table_t getTabEnt(uint32_t i)
 
     /* First 32 bytes are VROM start address, next 32 are VROM end address */
     /* Next 32 bytes are Physical start address, last 32 are Physical end address */
-    tab.startV = bSwap_32(inTable[i*4]    );
-    tab.endV   = bSwap_32(inTable[(i*4)+1]);
-    tab.startP = bSwap_32(inTable[(i*4)+2]);
-    tab.endP   = bSwap_32(inTable[(i*4)+3]);
+    tab.startV = bSwap32(inTable[i*4]    );
+    tab.endV   = bSwap32(inTable[(i*4)+1]);
+    tab.startP = bSwap32(inTable[(i*4)+2]);
+    tab.endP   = bSwap32(inTable[(i*4)+3]);
 
     return(tab);
 }
@@ -198,13 +198,13 @@ void setTabEnt(uint32_t i, table_t tab)
 {
     /* First 32 bytes are VROM start address, next 32 are VROM end address */
     /* Next 32 bytes are Physical start address, last 32 are Physical end address */
-    outTable[i*4]     = bSwap_32(tab.startV);
-    outTable[(i*4)+1] = bSwap_32(tab.endV);
-    outTable[(i*4)+2] = bSwap_32(tab.startP);
-    outTable[(i*4)+3] = bSwap_32(tab.endP);
+    outTable[i*4]     = bSwap32(tab.startV);
+    outTable[(i*4)+1] = bSwap32(tab.endV);
+    outTable[(i*4)+2] = bSwap32(tab.startP);
+    outTable[(i*4)+3] = bSwap32(tab.endP);
 }
 
-void decode(uint8_t* source, uint8_t* decomp, int32_t decompSize)
+void decompress(uint8_t* source, uint8_t* decomp, int32_t decompSize)
 {
     uint32_t srcPlace = 0, dstPlace = 0;
     uint32_t i, dist, copyPlace, numBytes;
